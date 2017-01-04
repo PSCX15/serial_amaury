@@ -17,6 +17,7 @@
 
 using std::vector;
 
+
 int countAcc=0;
 int countGyr=0;
 int countMag=0;
@@ -88,7 +89,7 @@ int main(int argc, char **argv)
   
   ros::NodeHandle n;
   
-  ros::Rate loop_rate(2);
+  //ros::Rate loop_rate(2);
   
 	ros::Subscriber sub_acc = n.subscribe("CIAcc", 1000, AccCallback);
 	ros::Subscriber sub_gyr = n.subscribe("CIGyr", 1000, GyrCallback);

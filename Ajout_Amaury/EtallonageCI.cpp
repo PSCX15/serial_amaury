@@ -17,6 +17,7 @@
 
 using std::vector;
 
+
 int countAcc=0;
 int countGyr=0;
 int countMag=0;
