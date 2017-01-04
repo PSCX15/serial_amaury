@@ -1,0 +1,12 @@
+string valid
+string type
+int32 numero
+float32 longitude
+float32 latitude
+float32 route
+float32 vitesse
+float32 time
+int32 date
+float32 accuracy
+float32 altitude
+int32 satellite

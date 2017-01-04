@@ -1,0 +1,125 @@
+cmake_minimum_required(VERSION 2.8.3)
+project(serial_amaury)
+
+# Find catkin
+find_package(catkin REQUIRED)
+
+find_package(catkin REQUIRED COMPONENTS
+  roscpp
+  rospy
+  std_msgs
+  message_generation
+)
+
+##Pour les messages
+add_message_files(
+  FILES
+  GPS_raw.msg
+  GPS_refined.msg
+  CI_msg.msg
+)
+
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+)
+
+
+if(APPLE)
+	find_library(IOKIT_LIBRARY IOKit)
+	find_library(FOUNDATION_LIBRARY Foundation)
+endif()
+
+if(UNIX AND NOT APPLE)
+    # If Linux, add rt and pthread
+    catkin_package(
+        LIBRARIES ${PROJECT_NAME}
+        INCLUDE_DIRS include 
+        DEPENDS rt pthread
+        CATKIN_DEPENDS roscpp rospy std_msgs
+    )
+else()
+    # Otherwise normal call
+    catkin_package(
+        LIBRARIES ${PROJECT_NAME}
+        INCLUDE_DIRS include 
+    )
+endif()
+
+## Sources
+set(serial_SRCS
+    src/serial.cc
+    include/serial/serial.h
+    include/serial/v8stdint.h
+)
+if(APPLE)
+	# If OSX
+	list(APPEND serial_SRCS src/impl/unix.cc)
+	list(APPEND serial_SRCS src/impl/list_ports/list_ports_osx.cc)
+elseif(UNIX)
+    # If unix
+    list(APPEND serial_SRCS src/impl/unix.cc)
+    list(APPEND serial_SRCS src/impl/list_ports/list_ports_linux.cc)
+else()
+    # If windows
+    list(APPEND serial_SRCS src/impl/win.cc)
+    list(APPEND serial_SRCS src/impl/list_ports/list_ports_win.cc)
+endif()
+
+## Add serial library
+add_library(${PROJECT_NAME} ${serial_SRCS} )
+if(APPLE)
+	target_link_libraries(${PROJECT_NAME} ${FOUNDATION_LIBRARY} ${IOKIT_LIBRARY})
+elseif(UNIX)
+	target_link_libraries(${PROJECT_NAME} rt pthread)
+else()
+	target_link_libraries(${PROJECT_NAME} setupapi)
+endif()
+
+## Uncomment for example
+add_executable(serial_example examples/serial_example.cc)
+add_dependencies(serial_example ${PROJECT_NAME})
+target_link_libraries(serial_example ${PROJECT_NAME})
+
+
+##Ajout_Amaury
+add_executable(serial_gps Ajout_Amaury/lectureGPS.cpp)
+add_dependencies(serial_gps ${PROJECT_NAME} ${catkin_LIBRARIES})
+target_link_libraries(serial_gps ${PROJECT_NAME} ${catkin_LIBRARIES})
+
+add_executable(serial_gps_multiple Ajout_Amaury/lectureGPSMultiple.cpp)
+add_dependencies(serial_gps_multiple ${PROJECT_NAME} ${catkin_LIBRARIES})
+target_link_libraries(serial_gps_multiple ${PROJECT_NAME} ${catkin_LIBRARIES})
+
+add_executable(serial_gps_avance Ajout_Amaury/lectureGPSAvance.cpp)
+add_dependencies(serial_gps_avance ${PROJECT_NAME} ${catkin_LIBRARIES})
+target_link_libraries(serial_gps_avance ${PROJECT_NAME} ${catkin_LIBRARIES})
+
+add_executable(serial_CI Ajout_Amaury/lectureCI.cpp)
+add_dependencies(serial_CI ${PROJECT_NAME} ${catkin_LIBRARIES})
+target_link_libraries(serial_CI ${PROJECT_NAME} ${catkin_LIBRARIES})
+
+add_executable(serial_etallonageCI Ajout_Amaury/EtallonageCI.cpp)
+add_dependencies(serial_etallonageCI ${PROJECT_NAME} ${catkin_LIBRARIES})
+target_link_libraries(serial_etallonageCI ${PROJECT_NAME} ${catkin_LIBRARIES})
+
+
+
+## Include headers
+
+include_directories(${catkin_INCLUDE_DIRS})
+include_directories(include ${catkin_INCLUDE_DIRS})
+## Install executable
+install(TARGETS ${PROJECT_NAME}
+    ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+    LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+)
+
+## Install headers
+install(FILES include/serial/serial.h include/serial/v8stdint.h
+  DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION}/serial)
+
+## Tests
+if(CATKIN_ENABLE_TESTING)
+    add_subdirectory(tests)
+endif()
