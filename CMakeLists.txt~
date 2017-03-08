@@ -84,20 +84,25 @@ target_link_libraries(serial_example ${PROJECT_NAME})
 
 ##Ajout_Amaury
 add_executable(serial_gps Ajout_Amaury/lectureGPS.cpp)
-add_dependencies(serial_gps ${PROJECT_NAME} ${catkin_LIBRARIES})
+#add_dependencies(serial_gps ${PROJECT_NAME} ${catkin_LIBRARIES})
 target_link_libraries(serial_gps ${PROJECT_NAME} ${catkin_LIBRARIES})
 
 add_executable(serial_gps_multiple Ajout_Amaury/lectureGPSMultiple.cpp)
-add_dependencies(serial_gps_multiple ${PROJECT_NAME} ${catkin_LIBRARIES})
+#add_dependencies(serial_gps_multiple ${PROJECT_NAME} ${catkin_LIBRARIES})
 target_link_libraries(serial_gps_multiple ${PROJECT_NAME} ${catkin_LIBRARIES})
 
 add_executable(serial_gps_avance Ajout_Amaury/lectureGPSAvance.cpp)
-add_dependencies(serial_gps_avance ${PROJECT_NAME} ${catkin_LIBRARIES})
+#add_dependencies(serial_gps_avance ${PROJECT_NAME} ${catkin_LIBRARIES})
 target_link_libraries(serial_gps_avance ${PROJECT_NAME} ${catkin_LIBRARIES})
 
 add_executable(serial_CI Ajout_Amaury/lectureCI.cpp)
-add_dependencies(serial_CI ${PROJECT_NAME} ${catkin_LIBRARIES})
+#add_dependencies(serial_CI ${PROJECT_NAME} ${catkin_LIBRARIES})
 target_link_libraries(serial_CI ${PROJECT_NAME} ${catkin_LIBRARIES})
+
+add_executable(serial_etallonageCI Ajout_Amaury/EtallonageCI.cpp)
+#add_dependencies(serial_etallonageCI ${PROJECT_NAME} ${catkin_LIBRARIES})
+target_link_libraries(serial_etallonageCI ${PROJECT_NAME} ${catkin_LIBRARIES})
+
 
 
 ## Include headers

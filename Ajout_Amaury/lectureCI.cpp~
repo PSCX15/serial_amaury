@@ -17,9 +17,12 @@
 // ajouté
 #include "ros/ros.h"
 #include "std_msgs/String.h"
+#include "std_msgs/Bool.h"
 #include "serial_amaury/CI_msg.h"
-
+#include "sensor_msgs/Imu.h"
+#include <tf2/LinearMath/Quaternion.h>
 #include <sstream>
+#include <cmath>
 // fin ajouté
 
 
@@ -30,6 +33,15 @@ using std::cerr;
 using std::endl;
 using std::vector;
 
+float correctionMagX;
+float correctionMagY;
+float correctionMagZ;
+float correctionGyrX;
+float correctionGyrY;
+float correctionGyrZ;
+
+ros::NodeHandle* nhptr;
+
 void my_sleep(unsigned long milliseconds) {
 #ifdef _WIN32
       Sleep(milliseconds); // 100 ms
@@ -37,6 +49,10 @@ void my_sleep(unsigned long milliseconds) {
       usleep(milliseconds*1000); // 100 ms
 #endif
 }
+
+
+
+
 
 void enumerate_ports()
 {
@@ -58,6 +74,39 @@ void print_usage()
 	cerr << "Usage: test_serial <baudrate> ";
     cerr << " {-e|<serial port address>}" << endl;
 }
+
+void getCorrection(ros::NodeHandle& node){
+ if(!node.getParam("/Correction/Mag/x",correctionMagX)){
+  	correctionMagX = 0.0;
+  }
+  
+  if(!node.getParam("/Correction/Mag/y",correctionMagY)){
+  	correctionMagY = 0.0;
+  }
+  
+  if(!node.getParam("/Correction/Mag/z",correctionMagZ)){
+  	correctionMagZ = 0.0;
+  }
+  
+  if(!node.getParam("/Correction/Gyr/x",correctionGyrX)){
+  	correctionGyrX = 0.0;
+  }
+  
+  if(!node.getParam("/Correction/Gyr/y",correctionGyrY)){
+  	correctionGyrY = 0.0;
+  }
+  
+  if(!node.getParam("/Correction/Gyr/z",correctionGyrZ)){
+  	correctionGyrZ = 0.0;
+  }
+}
+
+
+void correctCallBack(const std_msgs::Bool::ConstPtr& msg){
+	getCorrection(*nhptr);
+}
+
+
 
 int run(int argc, char **argv)
 {
@@ -108,15 +157,37 @@ int run(int argc, char **argv)
 	ros::init(argc, argv, "LecteurCI");
 
   ros::NodeHandle n;
-
-  ros::Publisher chatter_acc = n.advertise<serial_amaury::CI_msg>("CIAcc", 1000);
-	ros::Publisher chatter_gyr = n.advertise<serial_amaury::CI_msg>("CIGyr", 1000);
-	ros::Publisher chatter_mag = n.advertise<serial_amaury::CI_msg>("CIMag", 1000);
   
+  nhptr = &n;
 
+  ros::Publisher chatter_acc = n.advertise<serial_amaury::CI_msg>("/CI/Acc", 1000);
+	ros::Publisher chatter_gyr = n.advertise<serial_amaury::CI_msg>("/CI/Gyr/corrected", 1000);
+	ros::Publisher chatter_mag = n.advertise<serial_amaury::CI_msg>("/CI/Mag/corrected", 1000);
+  
+  ros::Publisher imuPub = n.advertise<sensor_msgs::Imu>("/ouca?",1000);
+  
+  ros::Subscriber correct = n.subscribe("/Correction/Changed",1000,correctCallBack);
+
+  
+	getCorrection(n);
   
   ros::Rate loop_rate(2);
 
+  sensor_msgs::Imu imuMsg;
+  
+  imuMsg.header.frame_id = "base_link";
+  
+  imuMsg.orientation_covariance[0] = 20.0;
+  imuMsg.orientation_covariance[4] = 20.0;
+  imuMsg.orientation_covariance[8] = 20.0;
+  imuMsg.angular_velocity_covariance[0] = 25.0;
+  imuMsg.angular_velocity_covariance[4] = 25.0;
+  imuMsg.angular_velocity_covariance[8] = 25.0;
+  imuMsg.linear_acceleration_covariance[0] = 20.0;
+  imuMsg.linear_acceleration_covariance[4] = 20.0;
+  imuMsg.linear_acceleration_covariance[8] = 20.0;
+  
+  tf2::Quaternion q;
   
   while (ros::ok())
   {
@@ -167,6 +238,19 @@ int run(int argc, char **argv)
 				ROS_INFO("%s",resultVec[1].c_str());
 
 			}
+			
+			else if(!resultVec[0].compare("B")){
+				ROS_INFO("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB");
+				imuMsg.header.stamp = ros::Time::now();
+			}
+			
+			
+			else if(!resultVec[0].compare("F")){
+				ROS_INFO("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF");
+				imuPub.publish(imuMsg);
+			}
+			
+			
 			else if(resultVec.size()>=3){
 
 				msg.type = resultVec[0];
@@ -179,17 +263,53 @@ int run(int argc, char **argv)
 				
 				if(!(msg.type).compare("A")){
 					chatter_acc.publish(msg);
+					
+					imuMsg.linear_acceleration.x = msg.x;
+					imuMsg.linear_acceleration.y = msg.y;
+					imuMsg.linear_acceleration.z = msg.z;
+					
 					//ROS_INFO(" acc : x=%f ; y=%f ; z=%f",msg.x,msg.y,msg.z);
 					//ROS_INFO(" acc : z=%f",msg.z);
 				}
 				else if(!(msg.type).compare("C")){
+						
+					// Correction à faire!
+					msg.x = msg.x - correctionMagX;
+					msg.y = msg.y - correctionMagY;
+					msg.z = msg.z - correctionMagZ;
+						
+					q.setRPY(0, 0, 0);
+
+  	
 					chatter_mag.publish(msg);
-					float norme = sqrt(msg.x*msg.x+msg.y*msg.y+msg.z*msg.z);
-					ROS_INFO(" mag : x=%f ; y=%f ; z=%f",msg.x/norme,msg.y/norme,msg.z/norme);
+					float norme = sqrt(msg.x*msg.x+msg.y*msg.y);
+					float theta = asin(msg.x/norme);
+					//////////////////////////////////////// ALERTE ARCSIN CACA ////////////////////////////
+					ROS_WARN("Caca l'arcsin mon gars!!");
+					
+					q.setRPY(0,0,theta);
+					
+					imuMsg.orientation.x=q.x();
+					imuMsg.orientation.y=q.y();
+					imuMsg.orientation.z=q.z();
+					imuMsg.orientation.w=q.w();
+					
+					
+					//ROS_INFO(" mag : x=%f ; y=%f ; z=%f",msg.x,msg.y,msg.z);
+					//ROS_INFO(" mag norme : x=%f ; y=%f ; z=%f",msg.x/norme,msg.y/norme,msg.z/norme);
 				}
 				else if(!(msg.type).compare("G")){
+					msg.x = msg.x - correctionGyrX;
+					msg.y = msg.y - correctionGyrY;
+					msg.z = msg.z - correctionGyrZ;
+				
+					
+					imuMsg.angular_velocity.x = msg.x;
+					imuMsg.angular_velocity.y = msg.y;
+					imuMsg.angular_velocity.z = msg.z;
+					
 					chatter_gyr.publish(msg);
-					//ROS_INFO(" gyr : x=%f ; y=%f ; z=%f",msg.x,msg.y,msg.z);
+					ROS_INFO(" gyr : x=%f ; y=%f ; z=%f",msg.x,msg.y,msg.z);
 				}
 				else{
 					ROS_INFO("chelou, pas de message envoyé");
@@ -206,72 +326,6 @@ int run(int argc, char **argv)
 	
   }
 	
-  //FIN DE LA PARTIE AJOUTE
-
-
-/*
-  // Test the timeout, there should be 1 second between prints
-  cout << "Timeout == 1000ms, asking for 1 more byte than written." << endl;
-  while (count < 10) {
-    size_t bytes_wrote = my_serial.write(test_string);
-
-    string result = my_serial.read(test_string.length()+1);
-
-    cout << "Iteration: " << count << ", Bytes written: ";
-    cout << bytes_wrote << ", Bytes read: ";
-    cout << result.length() << ", String read: " << result << endl;
-
-    count += 1;
-  }
-
-  // Test the timeout at 250ms
-  my_serial.setTimeout(serial::Timeout::max(), 250, 0, 250, 0);
-  count = 0;
-  cout << "Timeout == 250ms, asking for 1 more byte than written." << endl;
-  while (count < 10) {
-    size_t bytes_wrote = my_serial.write(test_string);
-
-    string result = my_serial.read(test_string.length()+1);
-
-    cout << "Iteration: " << count << ", Bytes written: ";
-    cout << bytes_wrote << ", Bytes read: ";
-    cout << result.length() << ", String read: " << result << endl;
-
-    count += 1;
-  }
-
-  // Test the timeout at 250ms, but asking exactly for what was written
-  count = 0;
-  cout << "Timeout == 250ms, asking for exactly what was written." << endl;
-  while (count < 10) {
-    size_t bytes_wrote = my_serial.write(test_string);
-
-    string result = my_serial.read(test_string.length());
-
-    cout << "Iteration: " << count << ", Bytes written: ";
-    cout << bytes_wrote << ", Bytes read: ";
-    cout << result.length() << ", String read: " << result << endl;
-
-    count += 1;
-  }
-
-  // Test the timeout at 250ms, but asking for 1 less than what was written
-  count = 0;
-  cout << "Timeout == 250ms, asking for 1 less than was written." << endl;
-  while (count < 10) {
-    size_t bytes_wrote = my_serial.write(test_string);
-
-    string result = my_serial.read(test_string.length()-1);
-
-    cout << "Iteration: " << count << ", Bytes written: ";
-    cout << bytes_wrote << ", Bytes read: ";
-    cout << result.length() << ", String read: " << result << endl;
-
-    count += 1;
-  }
-*/
-  /*FIN DE LA PARTIE TEST DE SERIAL_EXAMPLE*/
-
   return 0;
 }
 
