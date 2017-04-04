@@ -123,13 +123,19 @@ void correctCallBack(const std_msgs::Bool::ConstPtr& msg){
 
 int run(int argc, char **argv)
 {
-  if(argc < 2) {
+  if(argc < 1) {
 	  print_usage();
     return 0;
   }
+  
+  ros::init(argc, argv, "LecteurCI");
+
+  ros::NodeHandle n;
+  
+  nhptr = &n;
 
   // Argument 2 is the serial port or enumerate flag
-  string port(argv[2]);
+  /*string port(argv[2]);
 
   if( port == "-e" ) {
 	  enumerate_ports();
@@ -139,7 +145,12 @@ int run(int argc, char **argv)
 	  print_usage();
 	  return 1;
   }
-
+	*/
+	
+	string port = "/dev/ttyACM0"; //valeur par defaut
+	n.getParam("maestroPath", port);
+  
+  
   // Argument 1 is the baudrate
   unsigned long baud = 0;
 #if defined(WIN32) && !defined(__MINGW32__)
@@ -167,11 +178,7 @@ int run(int argc, char **argv)
   }
   //DEBUT DE LA PARTIE AJOUTE
   
-	ros::init(argc, argv, "LecteurCI");
 
-  ros::NodeHandle n;
-  
-  nhptr = &n;
 
   ros::Publisher chatter_acc = n.advertise<serial_amaury::CI_msg>("/CI/Acc", 1000);
 	ros::Publisher chatter_gyr = n.advertise<serial_amaury::CI_msg>("/CI/Gyr/corrected", 1000);
@@ -193,11 +200,36 @@ int run(int argc, char **argv)
   imuMsg.orientation_covariance[0] = 0.01;
   imuMsg.orientation_covariance[4] = 0.01;
   imuMsg.orientation_covariance[8] = 0.01;
-  imuMsg.angular_velocity_covariance[0] = 1.0;
-  imuMsg.angular_velocity_covariance[4] = 1.0;
-  imuMsg.angular_velocity_covariance[8] = 1.0;
-  imuMsg.linear_acceleration_covariance[0] = 1.0;
-  imuMsg.linear_acceleration_covariance[4] = 1.0;
+  
+  float gyrZV;
+  if(!n.getParam("/Correction/Gyr/zV",gyrZV)){
+  	gyrZV = 1.0;
+  }
+  float gyrYV;
+  if(!n.getParam("/Correction/Gyr/yV",gyrYV)){
+  	gyrYV = 1.0;
+  }
+  float gyrXV;
+  if(!n.getParam("/Correction/Gyr/xV",gyrXV)){
+  	gyrXV = 1.0;
+  }
+
+  imuMsg.angular_velocity_covariance[0] = gyrXV;
+  imuMsg.angular_velocity_covariance[4] = gyrYV;
+  imuMsg.angular_velocity_covariance[8] = gyrZV;
+  
+  float accXV;
+  if(!n.getParam("/Correction/Acc/xV",accXV)){
+  	accXV = 1.0;
+  }
+  
+  float accYV;
+  if(!n.getParam("/Correction/Acc/yV",accYV)){
+  	accYV = 1.0;
+  }
+  
+  imuMsg.linear_acceleration_covariance[0] = accXV;
+  imuMsg.linear_acceleration_covariance[4] = accYV;
   imuMsg.linear_acceleration_covariance[8] = 1.0;
   
   tf2::Quaternion q;
@@ -275,9 +307,9 @@ int run(int argc, char **argv)
 
 				
 				if(!(msg.type).compare("A")){
-					chatter_acc.publish(msg);
 					
-					float facteur = 9.81/256;
+					
+					float facteur = 9.81/256.0;
 					msg.x = facteur*msg.x - correctionAccX;
 					msg.y = facteur*msg.y - correctionAccY;
 					msg.z = facteur*msg.z;
@@ -287,6 +319,7 @@ int run(int argc, char **argv)
 					imuMsg.linear_acceleration.y =  msg.y;
 					imuMsg.linear_acceleration.z =  msg.z;
 					
+					chatter_acc.publish(msg);
 					//ROS_INFO(" acc : x=%f ; y=%f ; z=%f",msg.x,msg.y,msg.z);
 					//ROS_INFO(" acc : z=%f",msg.z);
 				}
@@ -322,7 +355,7 @@ int run(int argc, char **argv)
 					
 					
 					//ROS_INFO(" mag : x=%f ; y=%f ; z=%f",msg.x,msg.y,msg.z);
-					ROS_INFO(" mag norme : x=%f ; y=%f ",msg.x/norme,msg.y/norme);
+					//ROS_INFO(" mag norme : x=%f ; y=%f ",msg.x/norme,msg.y/norme);
 				}
 				else if(!(msg.type).compare("G")){
 					float correction = 3.1415926/(14.375*180);
