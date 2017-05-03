@@ -17,6 +17,7 @@ add_message_files(
   GPS_raw.msg
   GPS_refined.msg
   CI_msg.msg
+  mesure.msg
 )
 
 generate_messages(
@@ -103,6 +104,9 @@ add_executable(serial_etallonageCI Ajout_Amaury/EtallonageCI.cpp)
 #add_dependencies(serial_etallonageCI ${PROJECT_NAME} ${catkin_LIBRARIES})
 target_link_libraries(serial_etallonageCI ${PROJECT_NAME} ${catkin_LIBRARIES})
 
+add_executable(serial_particules Ajout_Amaury/lectureParticules.cpp)
+#add_dependencies(serial_etallonageCI ${PROJECT_NAME} ${catkin_LIBRARIES})
+target_link_libraries(serial_particules ${PROJECT_NAME} ${catkin_LIBRARIES})
 
 
 ## Include headers

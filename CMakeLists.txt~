@@ -17,6 +17,7 @@ add_message_files(
   GPS_raw.msg
   GPS_refined.msg
   CI_msg.msg
+  mesure.msg
 )
 
 generate_messages(
