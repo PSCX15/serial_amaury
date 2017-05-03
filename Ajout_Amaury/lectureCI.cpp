@@ -148,7 +148,7 @@ int run(int argc, char **argv)
 	*/
 	
 	string port = "/dev/ttyACM0"; //valeur par defaut
-	n.getParam("maestroPath", port);
+	n.getParam("ciPath", port);
   
   
   // Argument 1 is the baudrate
